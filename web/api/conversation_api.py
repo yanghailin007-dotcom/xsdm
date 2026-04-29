@@ -1753,10 +1753,39 @@ def generate_batch():
         
         logger.info(f"[Conversation] /generate-batch: project={project_id}, vol={volume_number}, chapters={start_chapter}-{end_chapter}, model={actual_model}")
         
+        def _cn_to_int(cn: str) -> int:
+            """简单中文数字转阿拉伯数字"""
+            if cn.isdigit():
+                return int(cn)
+            CN_NUMS = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,'千':1000,'万':10000,'亿':100000000}
+            total = 0
+            temp = 0
+            for c in cn:
+                if c in CN_NUMS:
+                    n = CN_NUMS[c]
+                    if n >= 10:
+                        if temp == 0:
+                            temp = 1
+                        total += temp * n
+                        temp = 0
+                    else:
+                        temp = temp * 10 + n if temp else n
+            return total + temp
+        
         def generate():
             # 检查细纲是否覆盖当前批次
             if not batch_detailed:
-                err_msg = f"当前卷细纲未覆盖第{start_chapter}-{end_chapter}章（第1卷只规划到第16章）。请切换到第2卷或先【生成本卷细纲】。"
+                # 计算当前卷细纲最大章节号
+                import re
+                max_ch_pattern = re.compile(r'^(#{2,3}\s+第)([一二三四五六七八九十百\d]+)(章)', re.MULTILINE)
+                max_ch = 0
+                for m in max_ch_pattern.finditer(detailed_full or ""):
+                    max_ch = max(max_ch, _cn_to_int(m.group(2)))
+                
+                if max_ch > 0:
+                    err_msg = f"当前第{volume_number}卷细纲只到第{max_ch}章，未覆盖第{start_chapter}-{end_chapter}章。请先【生成本卷细纲】。"
+                else:
+                    err_msg = f"当前第{volume_number}卷没有细纲，未覆盖第{start_chapter}-{end_chapter}章。请先【生成本卷细纲】。"
                 logger.warning(f"[Conversation] {err_msg}")
                 yield f"data: {json.dumps({'error': err_msg})}\n\n"
                 yield "data: [DONE]\n\n"

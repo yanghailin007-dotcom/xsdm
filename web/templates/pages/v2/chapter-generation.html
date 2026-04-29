@@ -1582,6 +1582,17 @@ document.addEventListener('DOMContentLoaded', () => {
     $('editBtn').addEventListener('click', toggleEditMode);
     $('cancelEditBtn').addEventListener('click', cancelEdit);
     restoreLastProject();
+
+    // 页面从后台切回前台时自动刷新项目文件（例如从细纲生成页面返回后）
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            const pid = $('projectSelect').value;
+            const vol = parseInt($('volumeSelect').value);
+            if (pid && !isGenerating) {
+                loadProjectFiles(pid, vol);
+            }
+        }
+    });
 });
 
 async function loadProjects() {
@@ -1702,6 +1713,9 @@ async function loadProjectFiles(projectId, volumeNumber) {
                     chapters[chNum] = { title: chData.title, content: chData.content, status: 'generated' };
                 }
             }
+
+            // 重置标签页到第1页
+            tabCurrentPage = 0;
 
             // 渲染章节标签页
             renderTabPage();
