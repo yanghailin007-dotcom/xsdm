@@ -1700,34 +1700,11 @@ def generate_batch():
             prompt = _build_writing_prompt(files.get('settings', ''), volume_rough, volume_number)
             messages = [{"role": "user", "content": prompt}]
         
-        gen_prompt = f"""请生成第{start_chapter}章到第{end_chapter}章的正文。
-
-【本批细纲】
-{batch_detailed}
-
-【本章要求】
-- 字数2000字以上
-- 每章以 ### 第X章 [抓眼球标题] 开头
-- 章节之间直接连续输出，不要插入分隔线或说明文字
-- 禁止输出任何说明文字、总结、分析、字数统计、写作思路、本章完、待续等标记"""
-        
-        # 追加到 messages
-        req_messages = messages.copy()
-        req_messages.append({"role": "user", "content": gen_prompt})
-        
         import requests
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {endpoint['api_key']}"
         }
-        
-        payload = {
-            "model": actual_model,
-            "messages": req_messages,
-            "stream": True,
-        }
-        if "deepseek" in actual_model.lower():
-            payload["thinking"] = {"type": "enabled"}
         
         logger.info(f"[Conversation] /generate-batch: project={project_id}, vol={volume_number}, chapters={start_chapter}-{end_chapter}, model={actual_model}")
         
@@ -1751,83 +1728,115 @@ def generate_batch():
             return total + temp
         
         def generate():
-            # 检查细纲是否覆盖当前批次
-            if not batch_detailed:
-                # 计算当前卷细纲最大章节号
-                import re
-                max_ch_pattern = re.compile(r'^(#{2,3}\s+第)([一二三四五六七八九十百\d]+)(章)', re.MULTILINE)
-                max_ch = 0
-                for m in max_ch_pattern.finditer(detailed_full or ""):
-                    max_ch = max(max_ch, _cn_to_int(m.group(2)))
+            # 对话上下文，从初始设定开始
+            req_messages = messages.copy()
+            all_chapters_text = ""
+            total_prompt_tokens = 0
+            
+            for ch in range(start_chapter, end_chapter + 1):
+                # 提取单章细纲
+                single_detailed = _extract_batch_detailed(detailed_full, ch, ch)
+                if not single_detailed:
+                    err_msg = f"当前第{volume_number}卷细纲未覆盖第{ch}章。请先【生成本卷细纲】。"
+                    logger.warning(f"[Conversation] {err_msg}")
+                    yield f"data: {json.dumps({'error': err_msg})}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
                 
-                if max_ch > 0:
-                    err_msg = f"当前第{volume_number}卷细纲只到第{max_ch}章，未覆盖第{start_chapter}-{end_chapter}章。请先【生成本卷细纲】。"
-                else:
-                    err_msg = f"当前第{volume_number}卷没有细纲，未覆盖第{start_chapter}-{end_chapter}章。请先【生成本卷细纲】。"
-                logger.warning(f"[Conversation] {err_msg}")
-                yield f"data: {json.dumps({'error': err_msg})}\n\n"
-                yield "data: [DONE]\n\n"
-                return
-            
-            try:
-                resp = requests.post(
-                    endpoint["api_url"],
-                    headers=headers,
-                    json=payload,
-                    stream=True,
-                    timeout=600
-                )
-            except Exception as e:
-                yield f"data: {json.dumps({'error': f'请求异常: {str(e)}'})}\n\n"
-                return
-            
-            if not resp.ok:
+                single_prompt = f"""请生成第{ch}章的正文。
+
+【本章细纲】
+{single_detailed}
+
+【本章要求】
+- 字数2000字以上
+- 以 ### 第{ch}章 [抓眼球标题] 开头
+- 适合目前的番茄读者喜好
+- 直接输出正文，不要插入分隔线或说明文字
+- 禁止输出任何说明文字、总结、分析、字数统计、写作思路、本章完、待续等标记"""
+                
+                # 当前轮的完整消息
+                current_messages = req_messages + [{"role": "user", "content": single_prompt}]
+                
+                payload = {
+                    "model": actual_model,
+                    "messages": current_messages,
+                    "stream": True,
+                }
+                if "deepseek" in actual_model.lower():
+                    payload["thinking"] = {"type": "enabled"}
+                
                 try:
-                    err = resp.json().get("error", {}).get("message", resp.text)
-                except Exception:
-                    err = resp.text or f"HTTP {resp.status_code}"
-                logger.error(f"[Conversation] /generate-batch API 错误: {err}")
-                yield f"data: {json.dumps({'error': err})}\n\n"
-                return
-            
-            full_text = ""
-            try:
-                for line in resp.iter_lines():
-                    if not line:
-                        continue
-                    line_text = line.decode('utf-8')
-                    if not line_text.startswith('data: '):
-                        continue
-                    
-                    data_content = line_text[6:]
-                    if data_content == '[DONE]':
-                        # 保存章节文件
-                        _save_chapters_from_text(project_dir, full_text)
-                        # 返回完整对话历史，供前端下一批次续写使用
-                        final_messages = req_messages + [{"role": "assistant", "content": full_text}]
-                        yield f"data: {json.dumps({'session_messages': final_messages})}\n\n"
-                        yield "data: [DONE]\n\n"
-                        break
-                    
+                    resp = requests.post(
+                        endpoint["api_url"],
+                        headers=headers,
+                        json=payload,
+                        stream=True,
+                        timeout=600
+                    )
+                except Exception as e:
+                    yield f"data: {json.dumps({'error': f'第{ch}章请求异常: {str(e)}'})}\n\n"
+                    return
+                
+                if not resp.ok:
                     try:
-                        chunk = json.loads(data_content)
-                        choices = chunk.get("choices") or [{}]
-                        delta = choices[0].get("delta", {}) if choices else {}
-                        content_piece = delta.get("content", "")
-                        reasoning_piece = delta.get("reasoning_content", "")
-                        if content_piece:
-                            full_text += content_piece
-                            yield f"data: {json.dumps({'content': content_piece})}\n\n"
-                        if reasoning_piece:
-                            yield f"data: {json.dumps({'reasoning': reasoning_piece})}\n\n"
-                    except (json.JSONDecodeError, IndexError, KeyError):
-                        continue
-                # 🔥 流式响应结束后进行Token估算计费
-                prompt_text = "\n".join(m.get("content", "") for m in req_messages)
-                _deduct_by_estimate(endpoint, actual_model, prompt_text, full_text, 'generate-batch')
-            except Exception as e:
-                logger.error(f"[Conversation] /generate-batch 流式异常: {e}")
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                        err = resp.json().get("error", {}).get("message", resp.text)
+                    except Exception:
+                        err = resp.text or f"HTTP {resp.status_code}"
+                    logger.error(f"[Conversation] 第{ch}章 API 错误: {err}")
+                    yield f"data: {json.dumps({'error': f'第{ch}章生成失败: {err}'})}\n\n"
+                    return
+                
+                chapter_text = ""
+                try:
+                    for line in resp.iter_lines():
+                        if not line:
+                            continue
+                        line_text = line.decode('utf-8')
+                        if not line_text.startswith('data: '):
+                            continue
+                        
+                        data_content = line_text[6:]
+                        if data_content == '[DONE]':
+                            break
+                        
+                        try:
+                            chunk = json.loads(data_content)
+                            choices = chunk.get("choices") or [{}]
+                            delta = choices[0].get("delta", {}) if choices else {}
+                            content_piece = delta.get("content", "")
+                            reasoning_piece = delta.get("reasoning_content", "")
+                            if content_piece:
+                                chapter_text += content_piece
+                                yield f"data: {json.dumps({'content': content_piece})}\n\n"
+                            if reasoning_piece:
+                                yield f"data: {json.dumps({'reasoning': reasoning_piece})}\n\n"
+                        except (json.JSONDecodeError, IndexError, KeyError):
+                            continue
+                except Exception as e:
+                    logger.error(f"[Conversation] 第{ch}章流式异常: {e}")
+                    yield f"data: {json.dumps({'error': f'第{ch}章流式异常: {str(e)}'})}\n\n"
+                    return
+                
+                # 把这章的对话历史追加到上下文
+                req_messages.append({"role": "user", "content": single_prompt})
+                req_messages.append({"role": "assistant", "content": chapter_text})
+                all_chapters_text += chapter_text + "\n\n"
+                
+                # 累加 prompt token（用于计费）
+                total_prompt_tokens += sum(len(m.get("content", "")) for m in current_messages)
+                
+                logger.info(f"[Conversation] 第{ch}章生成完成，长度: {len(chapter_text)} 字符")
+            
+            # 所有章节生成完毕
+            _save_chapters_from_text(project_dir, all_chapters_text.strip())
+            
+            # 返回完整对话历史
+            yield f"data: {json.dumps({'session_messages': req_messages})}\n\n"
+            yield "data: [DONE]\n\n"
+            
+            # 计费
+            _deduct_by_estimate(endpoint, actual_model, " " * total_prompt_tokens, all_chapters_text, 'generate-batch')
         
         return Response(
             stream_with_context(generate()),
