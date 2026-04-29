@@ -1725,6 +1725,9 @@ def generate_batch():
         # 读取本卷粗纲（从 outline_vol{N}.md 读取）
         volume_rough = _read_volume_outline(project_dir, volume_number)
         
+        # 读取设定
+        files = _read_project_files(project_dir)
+        
         end_chapter = start_chapter + batch_size - 1
         
         # 如果 messages 为空，构建初始设定消息（全局上下文，只传一次）
