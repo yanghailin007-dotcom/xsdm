@@ -815,10 +815,10 @@
             display: flex;
         }
         .editor-textarea {
-            width: 100%; height: 100%; padding: 20px 24px;
+            width: 100%; height: 100%; padding: 28px 40px;
             border: none; background: var(--bg-primary);
-            color: var(--text-primary); font-size: 14px;
-            line-height: 1.8; font-family: "SF Mono", Monaco, monospace;
+            color: var(--text-primary); font-size: 15px;
+            line-height: 1.9; font-family: "SF Mono", Monaco, monospace;
             resize: none; outline: none;
         }
         .editor-preview {
@@ -1111,6 +1111,7 @@
             <!-- 操作栏 -->
             <div class="action-bar">
                 <button class="btn-generate" id="btnGenerate" disabled>✨ 生成设定</button>
+                <button class="btn-optimize" id="btnOptimizeSettingsBottom" onclick="generateOptimizedSettings()" style="display:none;margin-left:8px;padding:10px 28px;background:var(--accent-blue);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;transition:all 0.15s;align-items:center;gap:6px;">🔧 优化设定</button>
                 <button class="btn-clear" id="btnClear" onclick="clearChat()" style="margin-left:12px;padding:8px 16px;background:transparent;color:var(--text-muted);border:1px solid var(--border-color);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">🗑️ 清空对话</button>
             </div>
 
@@ -1153,6 +1154,7 @@
                 <div class="tab-content active" id="tab-settings">
                     <div class="tab-actions">
                         <button class="tab-gen-btn" id="btnGenSettings" onclick="generateSettings()">✨ 生成设定</button>
+                        <button class="tab-gen-btn" id="btnOptimizeSettings" onclick="generateOptimizedSettings()" title="基于已有设定优化爽点、修复毒点">🔧 优化设定</button>
                         <span class="tab-status" id="settingsStatus">基于对话内容生成</span>
                     </div>
                     <div class="file-list" id="fileListSettings">
@@ -1691,6 +1693,10 @@
             const isReady = userCount >= 1;
             btnGenerate.disabled = !isReady;
             btnGenerate.style.opacity = isReady ? '1' : '0.5';
+            const btnOptimizeBottom = document.getElementById('btnOptimizeSettingsBottom');
+            if (btnOptimizeBottom) {
+                btnOptimizeBottom.style.display = isReady ? 'flex' : 'none';
+            }
             if (!isReady) return;
             // 根据当前进度智能设置按钮文案
             if (!currentProjectData?.settings) {
@@ -2012,6 +2018,14 @@
                     btnGenerate.innerHTML = '✨ 生成框架';
                     pendingGenerateType = null;
                     syncConfigFromProjectData();
+                } else if (pendingGenerateType === 'settings_optimize') {
+                    currentProjectData = currentProjectData || {};
+                    currentProjectData.settings = fullText;
+                    renderSettings(fullText);
+                    settingsPanel.classList.add('active');
+                    document.getElementById('outlineStatus').textContent = '设定已优化';
+                    pendingGenerateType = null;
+                    syncConfigFromProjectData();
                 } else if (pendingGenerateType === 'framework') {
                     currentProjectData = currentProjectData || {};
                     currentProjectData.framework = fullText;
@@ -2065,6 +2079,67 @@
                 isRegenerating = false;
                 updateGenerateButton();
             }
+        }
+
+        function generateOptimizedSettings() {
+            if (messages.filter(m => m.role === 'user').length < 1) return;
+            if (isStreaming) return;
+
+            pendingGenerateType = 'settings_optimize';
+            const cfg = getProjectConfig();
+
+            let prompt;
+            if (customPrompts.settingsOptimize && customPrompts.settingsOptimize.trim()) {
+                prompt = customPrompts.settingsOptimize;
+            } else {
+                prompt = `用户已在上面对话中提供了完整的项目设定。请基于该设定进行深度优化，输出一份完整的优化版设定方案。
+
+【绝对铁律 — 严禁改动核心设定】
+以下内容是用户已经确定的核心设定，优化过程中严禁任何形式的修改、重写或替换：
+1. **书名**：必须保持用户已确定的书名，严禁重新取名
+2. **世界观核心框架**：时代背景、核心规则、世界运行逻辑必须保持原样
+3. **主角人设基础**：身份起点、核心目标、性格底色必须保持原样
+4. **金手指核心规则**：金手指的名称、核心机制、基础规则必须保持原样
+
+【阶段职责边界 — 严禁越界】
+- **设定阶段**（当前任务）：只负责世界观、人设、金手指、爽点体系、故事节奏阶段。绝对禁止输出任何"分卷字数分配""每卷多少章""某阶段占XX章"等数字规划。
+- **框架阶段**（后续任务）：负责将节奏阶段映射为${cfg.totalVolumes}卷，精确分配每卷的章节数和起止章号。
+
+【优化重点】
+1. **爽点设计优化**：
+   - 增加爽点密度和层次感（3章一小爽，10章一大爽，30章一爆爽）
+   - 爽点可视化：每次收获必须有具体数值（钱+多少/声望涨多少/等级升多少）
+   - 打脸地图清晰度：明确L1/L2/L3反派层级和打脸节奏
+   - 增加"震惊流""对比流""曝光流"等番茄主流爽点元素
+
+2. **毒点修复**：
+   - 排查圣母倾向、降智情节、双标行为
+   - 确保主角受辱不超过1章，下一章必须开始反击
+   - 消除慢热铺垫，前3章必须完成"绝境+金手指+小爽"三连击
+   - 检查是否有让读者"憋屈"超过忍耐阈值的设计
+
+3. **番茄市场契合度增强**：
+   - 简介优化：第1句强钩子+具体数字爽感+明确打脸预期（如用户简介已很好则保持）
+   - 标签优化：确保包含5-8个番茄热门标签
+   - 情绪节奏：每章结尾必须是钩子（悬念/震惊/期待/爽感回味）
+   - 收获可视化：建立清晰的"养成感"数值体系
+
+【输出格式】
+输出完整的项目设定 Markdown，结构与原始设定一致。对于用户已确定的核心内容（书名、世界观、人设、金手指），直接保留原样输出；对于优化部分（爽点体系、毒点修复、节奏增强），输出优化后的版本。
+
+【现实规避铁律 — 平行时空设定】
+1. 国名代称：中国→龙国/华夏/九州，美国→星条国/合众国，日本→樱花国/东瀛，英国→雾都国
+2. 一线城市：北京→B市/京城/燕京，上海→S市/沪市/申城，深圳→S市/深市/鹏城，广州→G市/羊城
+3. 省份：广东→粤州/南粤，浙江→浙州/钱塘，江苏→苏州/江南，四川→蜀州/天府
+4. 机构：省政府→省署/省府，县政府→县衙/县署，公安局→警署/治安司，法院→裁判司，高铁→磁悬浮/城际快线
+5. 品牌/APP：iPhone→智能机，微信→某社交软件，支付宝→某支付软件，抖音→某短视频平台，微博→某社交平台，淘宝→某购物软件
+6. 真实名人：禁止出现真实存在的名人、明星、政客姓名
+7. 敏感事件：禁止影射、映射、暗示任何现实敏感事件
+8. 货币：人民币→龙币/华夏币；身份证→身份卡；驾驶证→驾驶许可
+9. 本故事发生在平行时空，所有地名、机构、事件均为虚构`;
+            }
+
+            sendMessage(prompt);
         }
 
         function generateSettings() {

@@ -2113,6 +2113,23 @@ def get_project_files():
             if m:
                 latest_chapter = max(latest_chapter, int(m.group(1)))
         
+        # 读取各章节标题和内容
+        chapters_data = {}
+        for cf in chapter_files:
+            m = _re.search(r'第(\d+)章', cf.name)
+            if m:
+                ch_num = int(m.group(1))
+                try:
+                    content = cf.read_text(encoding='utf-8').strip()
+                    title_match = _re.search(r'^#\s*第\s*\d+\s*章\s*[：:：]?\s*(.*?)$', content, _re.MULTILINE)
+                    title = title_match.group(1).strip() if title_match else f'第{ch_num}章'
+                    chapters_data[str(ch_num)] = {
+                        "title": title,
+                        "content": content
+                    }
+                except Exception:
+                    pass
+        
         logger.info(f"[Conversation] /project-files: project={project_id}, vol={volume_number}, latest_chapter={latest_chapter}")
         return jsonify({
             "success": True,
@@ -2121,6 +2138,7 @@ def get_project_files():
             "detailed_outline": detailed,
             "chapter_count": len(chapter_files),
             "latest_chapter": latest_chapter,
+            "chapters": chapters_data,
         })
         
     except Exception as e:

@@ -1,0 +1,222 @@
+Total lines with bad chars: 221
+Line 6 (鐢):     <title>姝ｆ枃鐢熸垚 - NovelCraft</title>
+Line 107 (涓):         /* ===== 涓讳綋甯冨眬 ===== */
+Line 250 (绾):         /* ===== 鏁呬簨绾胯鍥撅紙鍦ㄥ彸渚ф鏂囧尯鍩熷睍绀猴級 ===== */
+Line 833 (绔):         /* 鎵嬫満绔槄璇讳紭鍖?*/
+Line 861 (鏍):         /* 鐣寗 APP 鏍囧噯锛氱┖琛屽垎闅旓紝鏃犻琛岀缉杩?*/
+Line 867 (绔):         /* 鍦烘櫙/鍔ㄤ綔杩囨浮鐭彞锛堚墹15瀛楋級鈥斺€斾繚鎸佺嫭绔嬫钀斤紝鐣寗椋庢牸 */
+Line 871 (鈥):         /* 瀵硅瘽娈佃惤鈥斺€斾笌鏅€氬彊杩板悓鏍煎紡锛岀綉鏂囦笉棰濆缂╄繘 */
+Line 1148 (绾):         /* ===== 鏁呬簨绾垮墽鐓?===== */
+Line 1193 (鐢):         /* 鍓х収鐢熸垚妯℃€佹 */
+Line 1280 (鐢):                 <a href="/chapter-generation" class="active">姝ｆ枃鐢熸垚</a>
+Line 1288 (涓):     <!-- 涓讳綋 -->
+Line 1297 (涓):                     <select id="projectSelect"><option value="">-- 鍔犺浇涓?--</option></select>
+Line 1300 (鍗):                     <label>鍗峰彿</label>
+Line 1320 (鐢):             <!-- 鐢熸垚璁剧疆 -->
+Line 1322 (鐢):                 <h3>鈿欙笍 鐢熸垚璁剧疆</h3>
+Line 1324 (绔):                     <label>璧峰绔犺妭</label>
+Line 1328 (绔):                     <label>姣忔壒绔犳暟</label>
+Line 1332 (鎴):                     <span>鉁?/span> 寮€濮嬬敓鎴?                </button>
+Line 1337 (涓):                     <span>鈻讹笍</span> 缁х画涓嬩竴鎵?                </button>
+Line 1339 (鐢):                     <span>馃搵</span> 鐢熸垚鏈嵎缁嗙翰
+Line 1345 (鐢):                 <div class="status-row"><span>鐢熸垚鐘舵€?/span><span class="val" id="statusText">鏈紑濮?/s
+Line 1346 (鎴):                 <div class="status-row"><span>宸茬敓鎴愮珷鑺?/span><span class="val" id="generatedCount">0 
+Line 1347 (绔):                 <div class="status-row"><span>褰撳墠绔犺妭</span><span class="val" id="currentChapterText"
+Line 1351 (绾):             <!-- 鏁呬簨绾垮叆鍙?-->
+Line 1353 (绾):                 <span>馃摉</span> 鏁呬簨绾?            </button>
+Line 1359 (绔):             <!-- 绔犺妭鏍囩椤?-->
+Line 1373 (绔):                     <h3 id="contentTitle">绔犺妭鍐呭</h3>
+Line 1375 (鉁):                         <button id="editBtn" style="display:none;">鉁忥笍 缂栬緫</button>
+Line 1382 (鎴):                 <div class="content-body empty" id="contentBody">璇烽€夋嫨椤圭洰骞剁偣鍑汇€屽紑濮嬬敓鎴愩€?/div>
+Line 1392 (锛):             <!-- 鍙傝€冧晶婊戦潰鏉匡紙璁惧畾/澶х翰/缁嗙翰锛?-->
+Line 1402 (鍏):                             <option value="all">鍏ㄤ功妗嗘灦</option>
+Line 1404 (鉁):                         <button class="ref-drawer-close" onclick="closeRefDrawer()" title="鍏抽棴">鉁?/b
+Line 1408 (涓):                     <p style="color:var(--text-muted);">鐐瑰嚮涓婃柟鏍囩鏌ョ湅鍙傝€冨唴瀹?/p>
+Line 1430 (绔):             <h3>馃攧 閲嶅啓绔犺妭 <span id="rewriteChapterNum"></span></h3>
+Line 1432 (銆):             <textarea id="rewriteInstruction" placeholder="濡傦細澧炲姞鎵撹劯鍔涘害銆佸姞寮洪挬瀛愩€佷慨姝ｈ瀹氬亸宸瓑..."></te
+Line 1440 (鐢):     <!-- 鍓х収鐢熸垚妯℃€佹 -->
+Line 1443 (鐢):             <h3 id="stillModalTitle">馃幀 鐢熸垚鍓х収</h3>
+Line 1445 (鐢):             <textarea id="stillPrompt" placeholder="杈撳叆鐢熸垚鎻愮ず璇?.."></textarea>
+Line 1448 (鐢):                 <button class="btn-primary" id="stillGenerateBtn" onclick="confirmGenerateStill()">鐢
+Line 1462 (涓): let sessionMessages = []; // 姣忓嵎涓€涓細璇濈殑娑堟伅鍘嗗彶
+Line 1464 (涓): let lastVolumeSession = null; // 璁板綍涓婁竴娆＄敓鎴愭椂浣跨敤鐨勫嵎鍙凤紝鍒囨崲鍗锋椂閲嶇疆瀵硅瘽涓婁笅鏂?let storyline = [];          
+Line 1465 (鏍): let saveOutlineTimer = null;  // 缁嗙翰淇濆瓨 debounce 瀹氭椂鍣?const TAB_PAGE_SIZE = 8;      // 鏍囩椤垫瘡椤垫樉绀烘暟閲
+Line 1467 (绾): let projectFiles = null; // 褰撳墠椤圭洰鏂囦欢锛堢粏绾茬瓑锛?let showingRef = false; // 鏄惁姝ｅ湪鏄剧ず鍙傝€冨唴瀹癸紙璁惧畾/澶х翰/缁嗙翰
+Line 1470 (绾): let outlineVolumes = { all: '', volumes: {} }; // 瑙ｆ瀽鍚庣殑鍒嗗嵎澶х翰 { all: 妗嗘灦鏂囨湰, volumes: {1: '绗?鍗风矖绾?,
+Line 1543 (绔): // 椤圭洰/鍗峰彿/妯″瀷/绔犺妭璁剧疆鍒囨崲鏃惰嚜鍔ㄤ繚瀛?+ 鍔犺浇缁嗙翰
+Line 1576 (鎴):             // 鏇存柊鎴栧垱寤哄弬鑰冩爣绛撅紙璁惧畾 + 缁嗙翰锛?            updateReferenceTabs();
+Line 1579 (绾):             // 鍚敤鏁呬簨绾挎寜閽?            updateStorylineBtn();
+Line 1580 (绔):             // 鑷姩濉厖璧峰绔犺妭
+Line 1582 (绔):                 // 娌℃湁缁嗙翰锛岃鏄庤繕娌″紑濮嬬敓鎴愶紝璧峰绔犺妭璁句负 1
+Line 1585 (绾):                 // 鏈夌粏绾蹭笖鏈夊凡鐢熸垚绔犺妭锛屼粠鏈€鏂扮珷鑺?1缁х画
+Line 1588 (绾):                 // 鏈夌粏绾蹭絾娌℃湁宸茬敓鎴愮珷鑺傦紝浠庣1绔犲紑濮?                $('startChapter').value = 1;
+Line 1596 (涓): // 瑙ｆ瀽 outline.md 涓哄叏涔︽鏋?+ 鍚勫嵎绮楃翰
+Line 1601 (鎴):     // 灏濊瘯鎸?"# 鍚勫嵎绮楃翰" 鎴?"---" 鍒嗛殧绗﹀垎鍓?    const splitMarkers = [
+Line 1620 (涓):     // 浠?volumesText 涓В鏋愬悇鍗?    if (volumesText) {
+Line 1621 (绾):         // 鍖归厤 "# 绗琗鍗风矖绾? 鎴?"## 绗琗鍗? 鎴?"### 绗琗鍗?
+Line 1637 (鍗):     // 濉厖鍗烽€夋嫨鍣?    const volSelect = $('outlineVolSelect');
+Line 1639 (鍏):         volSelect.innerHTML = '<option value="all">鍏ㄤ功妗嗘灦</option>';
+Line 1644 (绾):             opt.textContent = `绗?{volNum}鍗风矖绾瞏;
+Line 1677 (鏍):             // 鏍囩椤电敱 renderTabPage 缁熶竴娓叉煋锛屼笉鍐嶇洿鎺?insert
+Line 1695 (鏍):     // 楂樹寒瀵瑰簲鏍囩
+Line 1721 (涓):     // 楂樹寒鎭㈠涓哄綋鍓嶇珷鑺?    document.querySelectorAll('.ref-tab-btn').forEach(t => t.classList.remove('
+Line 1726 (鍏):     _renderRefContent('鍏ㄤ功澶х翰', '馃搫', content, 'outline');
+Line 1727 (鍗):     // 鏄剧ず鍗烽€夋嫨鍣?    const volSelect = $('outlineVolSelect');
+Line 1734 (鍗):     // 闅愯棌鍗烽€夋嫨鍣?    const volSelect = $('outlineVolSelect');
+Line 1740 (鏍):     _renderRefContent('鏍稿績璁惧畾', '馃摉', content, 'settings');
+Line 1741 (鍗):     // 闅愯棌鍗烽€夋嫨鍣?    const volSelect = $('outlineVolSelect');
+Line 1766 (鉁):     $('editBtn').textContent = '鉁忥笍 缂栬緫';
+Line 1805 (鉁):             $('editBtn').textContent = '鉁忥笍 缂栬緫';
+Line 1808 (鉁):             showToast('鉁?宸蹭繚瀛?, 'success');
+Line 1817 (鐢): // ===== 鎵撳紑鍒嗗嵎缁嗙翰鐢熸垚椤甸潰 =====
+Line 1822 (涓):         showToast('璇峰厛閫夋嫨涓€涓」鐩?, 'error');
+Line 1828 (鍗): // 绠€鍗曠殑 Markdown 娓叉煋
+Line 1838 (鍏):         // 鍏堝鐞嗚鍐?**绮椾綋**
+Line 1849 (鈥):             html += '<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">鈥?' + p
+Line 1850 (嶿):         } else if (/^\d+[\.锛嶿\s/.test(trimmed)) {
+Line 1869 (鎴): // ===== 寮€濮嬬敓鎴?=====
+Line 1879 (涓):     if (!projectId) { showToast('璇峰厛閫夋嫨涓€涓」鐩?, 'error'); return; }
+Line 1881 (绾):     // 妫€鏌ュ綋鍓嶅嵎鏄惁鏈夌粏绾?    if (!projectFiles || !projectFiles.detailed_outline || !projectFiles.deta
+Line 1882 (绾):         showToast('褰撳墠鍗疯繕娌℃湁缁嗙翰锛岃鍏堢偣鍑汇€愮敓鎴愭湰鍗风粏绾层€戠敓鎴愮粏绾插悗鍐嶇敓鎴愭鏂?, 'error');
+Line 1886 (绔):     if (batchSize < 1 || batchSize > 10) { showToast('姣忔壒绔犳暟搴斿湪 1-10 涔嬮棿', 'error'); return; }
+Line 1897 (涓):     // 鍚屼竴鍗峰唴淇濇寔瀵硅瘽涓婁笅鏂囷紝鍒囨崲鍗锋椂鎵嶉噸缃?    if (volumeNumber !== lastVolumeSession) {
+Line 1912 (涓):     $('generateBtn').innerHTML = '<span>鈴?/span> 鐢熸垚涓?..';
+Line 1915 (鏍):     // 鍒涘缓鏍囩椤?    for (let i = startChapter; i <= currentBatchEnd; i++) {
+Line 1919 (绗):     // 娓叉煋绗竴椤垫爣绛?    renderTabPage();
+Line 1923 (涓):     // 鐢熸垚寮€濮嬫椂锛岄粯璁ゆ樉绀虹涓€涓珷鑺傦紙杩涘叆鐩存挱妯″紡锛?    showChapter(startChapter);
+Line 1966 (鐢):                         showToast('鐢熸垚閿欒: ' + data.error, 'error');
+Line 1972 (鍥):                         // 绮剧畝瀵硅瘽鍘嗗彶锛氬彧淇濈暀鍒濆璁惧畾 prompt + 鏈€鏂?AI 鍥炲
+Line 1973 (涓):                         // 鍘绘帀涓棿杩囨湡鐨?gen_prompt锛堟棫鐨勬壒娆＄粏绾插鍚庣画鎵规鏃犵敤锛?                        const
+Line 2003 (涓): // 涓枃鏁板瓧杞樋鎷変集鏁板瓧
+Line 2005 (涓):     const map = {'涓€':1,'浜?:2,'涓?:3,'鍥?:4,'浜?:5,'鍏?:6,'涓?:7,'鍏?:8,'涔?:9,'鍗?:10,'鐧?:100,'鍗?:1000,'涓?:
+Line 2022 (涓): // ===== 浠庢祦鏂囨湰涓В鏋愮珷鑺?=====
+Line 2025 (涓):     // 鏀寔闃挎媺浼暟瀛楀拰涓枃鏁板瓧
+Line 2026 (涓):     const headingRegex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?)\n/g;
+Line 2039 (绔):     // 鎻愬彇姣忎釜绔犺妭鐨勫唴瀹?    for (let i = 0; i < headings.length; i++) {
+Line 2054 (锛):             // 鏂扮珷鑺傚嚭鐜版椂锛岃嚜鍔ㄥ垏鎹㈠埌璇ョ珷鑺傦紙鐩存挱璺熼殢锛?            if (isNewChapter && isGenerating) {
+Line 2060 (锛):     // 鑺傛祦鏇存柊锛氬綋鍓嶆樉绀虹珷鑺傜殑瀹炴椂鍐呭锛堟瘡200ms鏈€澶氭洿鏂颁竴娆★紝閬垮厤棰戠箒閲嶆覆鏌擄級
+Line 2067 (涓):             // 鐢熸垚涓蛋鍚屾牱鐨勬钀芥覆鏌擄紙涓嶇敤璐ㄦ楂樹寒锛?            $('contentBody').innerHTML = '<div class="co
+Line 2076 (鐢): // ===== 瀹屾垚鐢熸垚 =====
+Line 2083 (鏍):     // 灏嗘墍鏈?generating 鐘舵€佹爣璁颁负 generated锛屽苟鍒锋柊鏍囩
+Line 2091 (浜):     // 閲嶆柊娓叉煋褰撳墠鏄剧ず绔犺妭锛堝惎鐢ㄩ珮浜川妫€锛?    if (activeChapter && chapters[activeChapter]) {
+Line 2095 (锛):     // 鑷姩淇濆瓨锛氬埛鏂伴」鐩枃浠讹紝鏇存柊 latest_chapter 鍜岃捣濮嬬珷鑺?    const projectId = $('projectSelect').value;
+Line 2100 (绔):             showToast(`鉁?鎵规鐢熸垚瀹屾垚锛?{savedCount} 绔犲凡鑷姩淇濆瓨`, 'success');
+Line 2102 (鉁):             showToast('鉁?鎵规鐢熸垚瀹屾垚', 'success');
+Line 2105 (鉁):         showToast('鉁?鎵规鐢熸垚瀹屾垚', 'success');
+Line 2109 (涓): // ===== 寮€濮嬩笅涓€鎵?=====
+Line 2117 (涓):     // 鍦ㄥ悓涓€瀵硅瘽涓婁笅鏂囦腑杩藉姞缁啓璇锋眰
+Line 2120 (涓):         content: `璇风户缁敓鎴愮${nextStart}绔犲埌绗?{endCh}绔犵殑姝ｆ枃銆備弗鏍兼寜鐓х粏绾插啓浣滐紝姣忕珷2000瀛楀乏鍙炽€傜珷鑺備箣闂寸洿鎺ヨ繛缁緭鍑
+Line 2132 (绔): // ===== 绔犺妭鏍囩椤?=====
+Line 2216 (绔):     // 纭繚褰撳墠绔犺妭鍦ㄦ爣绛鹃〉褰撳墠椤典腑鍙
+Line 2231 (涓):         $('contentBody').innerHTML = '<div class="content-body-inner"><p style="color:var(--text-mut
+Line 2238 (绔):     // 绔犺妭鎿嶄綔鎸夐挳
+Line 2263 (浜): // ===== 娓叉煋绔犺妭鍐呭锛岄珮浜川妫€闂 =====
+Line 2265 (涓):     // 缃戞枃娈佃惤涓嶅仛鍚堝苟锛屼繚鎸丄I鍘熸牱锛堢煭娈佃惤鏄暘鑼勯鏍硷級
+Line 2269 (浜):     // 濡傛灉鏈夎川妫€鎶ュ憡锛岄珮浜綋鍓嶇珷鑺傜殑闂鏂囧瓧
+Line 2279 (鏍):                 // 鐢?mark 鏍囩楂樹寒锛屽苟娣诲姞 tooltip
+Line 2298 (鎴):         showToast('璇ョ珷鑺傚皻鏈敓鎴?, 'error');
+Line 2305 (涓):     let instruction = `銆愯川妫€鍙戠幇鐨勯棶棰樸€慭n绫诲瀷锛?{issue.category || '鍏朵粬'}\n涓ラ噸绋嬪害锛?{issue.severity || 'w
+Line 2307 (锛):         instruction += `\n淇敼寤鸿锛?{issue.fix_suggestion}`;
+Line 2311 (銆):         instruction += `\n闂鏂囧瓧锛?${highlights.join('"銆?')}"`;
+Line 2313 (涓):     instruction += '\n\n璇锋牴鎹互涓婇棶棰橀噸鍐欐湰绔狅紝纭繚淇鎵€鏈夐棶棰樸€?;
+Line 2333 (涓):         $('statusText').textContent = '鐢熸垚涓?..';
+Line 2336 (鎴):         $('statusText').textContent = '宸插畬鎴?;
+Line 2345 (鐢):     // 鎵惧埌褰撳墠姝ｅ湪鐢熸垚鐨勭珷鑺?    let currentCh = '-';
+Line 2375 (鈻):                 <span>馃</span> 鎬濊€冧腑 <span class="toggle-icon" id="thinkingToggle">鈻?/span>
+Line 2395 (鐢):     if (!currentProject) { showToast('璇峰厛瀹屾垚鐢熸垚', 'error'); return; }
+Line 2398 (涓):     $('qualityCheckBtn').innerHTML = '<span>鈴?/span> 璐ㄦ涓?..';
+Line 2416 (鉁):             showToast('鉁?璐ㄦ瀹屾垚', 'success');
+Line 2429 (鐢):     qualityReport = report; // 淇濆瓨鍒板叏灞€锛屼緵楂樹寒鍜岄噸鍐欎娇鐢?    $('qualityPanel').style.display = 'block';
+Line 2451 (鉁):             ${passed ? '鉁?閫氳繃' : '鉂?鏈€氳繃'}
+Line 2457 (鉁):         list.innerHTML = '<li style="color:var(--success);font-size:12px;">鉁?鏈彂鐜伴棶棰?/li>';
+Line 2462 (銆):                 ? `<div style="margin-top:4px;font-size:10px;color:var(--text-muted);">馃攳 鐩稿叧鏂囧瓧锛?{h
+Line 2468 (鍏):                     <span class="issue-badge cat">${issue.category || '鍏朵粬'}</span>
+Line 2481 (浜):     // 鍒锋柊褰撳墠绔犺妭鏄剧ず锛屽簲鐢ㄩ珮浜?    if (activeChapter) showChapter(activeChapter);
+Line 2486 (绔): // ===== 閲嶅啓绔犺妭 =====
+Line 2504 (绔):     showToast(`馃攧 寮€濮嬮噸鍐欑${chNum}绔?..`, 'info');
+Line 2520 (绔):                 { role: 'user', content: `璇烽噸鍐欑${chNum}绔犮€備慨鏀硅姹傦細${instruction || '璇蜂紭鍖栨湰绔犺川閲忥紝澧炲己
+Line 2548 (锛):                         // 瀹炴椂瑙ｆ瀽骞舵樉绀猴紙鑺傛祦 200ms锛?                        const now = Date.now();
+Line 2551 (涓):                             const regex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?)\n/;
+Line 2568 (涓):         // 鏈€缁堣В鏋愰噸鍐欑粨鏋滐紙鏀寔涓枃鏁板瓧锛?        const regex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?
+Line 2581 (鉁):         showToast('鉁?閲嶅啓瀹屾垚', 'success');
+Line 2589 (绔): // ===== 淇濆瓨绔犺妭缂栬緫 =====
+Line 2592 (绔):     showToast('鉁?绔犺妭宸蹭繚瀛?, 'success');
+Line 2603 (绾): // ===== 鏁呬簨绾垮姛鑳斤紙鍦ㄥ彸渚ф鏂囧尯鍩熷睍绀猴級 =====
+Line 2615 (浜):         showToast('鏆傛棤缁嗙翰鏁版嵁锛屾棤娉曞睍绀烘晠浜嬬嚎', 'info');
+Line 2624 (绾):     document.getElementById('contentTitle').textContent = '馃摉 鏁呬簨绾挎瑙?;
+Line 2632 (鐢):     // 鍔犺浇骞跺睍绀哄凡鐢熸垚鐨勫墽鐓?    const pid = document.getElementById('projectSelect').value;
+Line 2641 (鎴):         document.getElementById('contentBody').innerHTML = '<div class="content-body-inner">璇烽€夋嫨椤圭洰
+Line 2643 (绔):         document.getElementById('contentTitle').textContent = '绔犺妭鍐呭';
+Line 2649 (绾): // 褰撳墠姝ｅ湪缂栬緫鐨勭粏绾茬珷鑺傚彿
+Line 2663 (鉁):         '<button class="gen-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="enterOu
+Line 2708 (绾):         showToast('鏈壘鍒版湰绔犵粏绾蹭綅缃紝淇濆瓨澶辫触', 'error');
+Line 2741 (绾):         return '<div class="storyline-empty">鏈兘浠庣粏绾蹭腑瑙ｆ瀽鍑虹珷鑺傛暟鎹?/div>';
+Line 2744 (绾):         '馃摉 鏁呬簨绾挎瑙?<span style="font-size:13px;color:var(--text-muted);font-weight:400;">鍏?' + stor
+Line 2749 (鐖):         if (ch.hook && (ch.hook.includes('鐖?) || ch.hook.includes('鏍?) || ch.hook.includes('缁堟瀬'))) 
+Line 2752 (绔):             '<div class="storyline-big-title" onclick="jumpToChapterFromStoryline(' + ch.num + ')" t
+Line 2757 (鐢):                 '<button class="still-generate-btn" onclick="showStillModal(' + ch.num + ', \'scene\
+Line 2765 (銆):                 html += '<button class="storyline-big-tag char" onclick="showStillModal(' + ch.num +
+Line 2771 (鐖):             html += '<div class="storyline-big-section full"><h4>馃挜 鏍稿績鐖界偣</h4><div class="storyline
+Line 2782 (鍏):             html += '<div class="storyline-big-section full"><h4>馃挰 鍏抽敭瀵硅瘽</h4><div class="storyline
+Line 2792 (鐖):             html += '<div class="storyline-big-section"><h4>鉁?鐖界偣璁捐</h4><p>' + escapeHtml(ch.climax
+Line 2806 (绾):     // 鏀寔1-3绾arkdown鏍囬锛屽吋瀹瑰悇绉嶆牸寮?    const chapterRegex = /^#{1,3}\s*绗琝s*(\d+)\s*绔??:[\s:锛歖+(.+?)
+Line 2824 (锛):         ch.characters = charsRaw ? charsRaw.split(/[,锛屻€?]/).map(s => s.trim()).filter(Boolean) : []
+Line 2825 (鐖):         ch.hook = extract('鏍稿績鐖界偣/鐚庡鐐?) || extract('鏍稿績鐖界偣');
+Line 2827 (锛):         const stepsMatch = block.match(/\*\*鎯呰妭姝ラ\*\*[锛?]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
+Line 2844 (鐖):         ch.climaxDesign = extract('鐖界偣璁捐璇存槑') || extract('鐖界偣璁捐');
+Line 2845 (绔):         ch.endingHook = extract('绔犺妭缁撳熬閽╁瓙') || extract('缁撳熬閽╁瓙');
+Line 2857 (绔):     else showToast('绗? + num + '绔犲皻鏈敓鎴愶紝璇峰厛寮€濮嬬敓鎴?, 'info');
+Line 2861 (绔):     showToast('馃幁 瑙掕壊銆? + name + '銆嶅湪绗? + chapterNum + '绔犲嚭鍦篭n锛堝悗缁彲鎺ュ叆AI鍓х収鐢熸垚锛?, 'info');
+Line 2865 (绔):     showToast('馃幀 鍦烘櫙銆? + scene + '銆峔n绗? + chapterNum + '绔燶n锛堝悗缁彲鎺ュ叆AI鍦烘櫙鍥剧敓鎴愶級', 'info');
+Line 2881 (浜):         showToast('馃挜 宸查珮浜' + chapterNum + '绔犵埥鐐瑰叧閿瘝', 'success');
+Line 2889 (绔): // 澶嶅埗褰撳墠绔犺妭姝ｆ枃
+Line 2897 (鉁):         showToast('鉁?宸插鍒跺埌鍓创鏉?, 'success');
+Line 2908 (鉁):             showToast('鉁?宸插鍒跺埌鍓创鏉?, 'success');
+Line 2910 (锛):             showToast('鉂?澶嶅埗澶辫触锛岃鎵嬪姩澶嶅埗', 'error');
+Line 2916 (绾): // ===== 鏁呬簨绾垮墽鐓у姛鑳?=====
+Line 2925 (銆):     // 绛栫暐1: 鎼滅储瑙掕壊鍚嶉檮杩戠殑"澶栬矊"銆?闀跨浉"銆?褰㈣薄"鍏抽敭璇?    const nameIdx = settings.indexOf(characterName);
+Line 2933 (鏍):     // 灏濊瘯鍖归厤甯歌鏍煎紡
+Line 2936 (歖):         /澶栬矊[锛?锛歖\s*([^\n]{10,200})/i,
+Line 2937 (歖):         /闀跨浉[锛?锛歖\s*([^\n]{10,200})/i,
+Line 2938 (歖):         /褰㈣薄[锛?锛歖\s*([^\n]{10,200})/i,
+Line 2939 (歖):         /闈㈠[锛?锛歖\s*([^\n]{10,200})/i,
+Line 2940 (歖):         /澶栬[锛?锛歖\s*([^\n]{10,200})/i,
+Line 2949 (鏍): // 娓呮礂瑙掕壊鍚嶏紝鍘绘帀鎷彿鏍囨敞濡?锛堥娆″嚭鍦猴級"
+Line 2960 (锛):         styleHint: '鐪熷疄鐓х墖璐ㄦ劅锛岃嚜鐒跺厜褰憋紝鍐欏疄椋庢牸',
+Line 2961 (涓):         negHint: '涓嶇骞讳笉鍙よ涓嶄粰渚犱笉鍔ㄦ极',
+Line 2962 (浜):         defaultDesc: '鐜颁唬鏃ュ父绌挎惌锛岄兘甯傛皵璐紝鐪熷疄浜哄儚'
+Line 2969 (鍏):             keys: ['淇粰', '鐜勫够', '浠欎緺', '淇湡', '閲戜腹', '鍏冨┐', '鐏垫皵', '娉曞疂', '娓″姭', '榄旈亾', '鍓戜慨'],
+Line 2973 (鍥):             styleHint: '鍥芥极椋庢牸锛屽敮缇庣粏鑵?,
+Line 2974 (涓):             negHint: '涓嶇幇浠ｄ笉绉戝够',
+Line 2975 (锛):             defaultDesc: '鍙ら鏈嶉グ锛岄閫搁暱鍙戯紝浠欐皵椋橀'
+Line 2982 (鎴):             styleHint: '鏈潵鎰燂紝鐢靛奖鎴浘',
+Line 2983 (涓):             negHint: '涓嶅彜椋庝笉鐜颁唬鏃ュ父',
+Line 2984 (鍏):             defaultDesc: '鏈潵鎰熸湇瑁咃紝绉戞妧鍏冪礌锛屽喎宄绘皵璐?
+Line 2991 (锛):             styleHint: '鍐欏疄鏆楄皟锛岀數褰辨劅',
+Line 2992 (涓):             negHint: '涓嶇骞讳笉鍙よ涓嶅敮缇?,
+Line 2993 (鎴):             defaultDesc: '鍐欏疄椋庢牸锛岀溂绁炴湁鎴忥紝姘旇川娌夌ǔ'
+Line 2996 (绔):             keys: ['瑷€鎯?, '鐢滃疇', '铏愭亱', '闇告€?, '鍗冮噾', '濠氭亱', '绔归┈'],
+Line 3000 (鏍):             styleHint: '鍞編鏌斿拰锛岄煩鍓ч鏍?,
+Line 3001 (涓):             negHint: '涓嶇骞讳笉鍙よ涓嶆殫璋?,
+Line 3002 (鍏):             defaultDesc: '鏃跺皻绮捐嚧锛屾皵璐ㄤ紭闆咃紝鏌斿拰鍏夊奖'
+Line 3009 (锛):             styleHint: '鍙ら鍐欏疄锛屽巻鍙茶川鎰?,
+Line 3010 (涓):             negHint: '涓嶇幇浠ｄ笉绉戝够',
+Line 3011 (锛):             defaultDesc: '鍙や唬鏈嶉グ锛屼华鎬佺搴勶紝鍘嗗彶璐ㄦ劅'
+Line 3023 (锛):         styleHint: '鐪熷疄鐓х墖璐ㄦ劅锛岃嚜鐒跺厜褰憋紝鍐欏疄椋庢牸',
+Line 3024 (涓):         negHint: '涓嶇骞讳笉鍙よ涓嶄粰渚犱笉鍔ㄦ极',
+Line 3025 (浜):         defaultDesc: '鐜颁唬鏃ュ父绌挎惌锛岄兘甯傛皵璐紝鐪熷疄浜哄儚'
+Line 3043 (銆):     return `${g.charPrefix}銆?{cleanName}銆嶏細${desc}锛?{g.styleHint}锛?{g.negHint}`;
+Line 3046 (鐢): // 鏄剧ず鍓х収鐢熸垚妯℃€佹
+Line 3054 (绔):         titleEl.textContent = `馃幀 鐢熸垚绗?{chNum}绔犲満鏅浘`;
+Line 3058 (銆):         titleEl.textContent = `馃懁 鐢熸垚銆?{cleanName}銆嶈鑹插浘`;
+Line 3063 (鐢):     document.getElementById('stillGenerateBtn').textContent = '鐢熸垚';
+Line 3072 (鐢): // 纭鐢熸垚鍓х収
+Line 3078 (鍏):     if (!prompt) { showToast('璇疯緭鍏ユ彁绀鸿瘝', 'error'); return; }
+Line 3082 (涓):     btn.textContent = '鈴?鐢熸垚涓?..';
+Line 3103 (鎴):             showToast('鉁?鍓х収鐢熸垚鎴愬姛', 'success');
+Line 3106 (鐢):             showToast('鐢熸垚澶辫触: ' + (data.error || '鏈煡閿欒'), 'error');
+Line 3108 (鐢):             btn.textContent = '鐢熸垚';
+Line 3113 (鐢):         btn.textContent = '鐢熸垚';
+Line 3117 (浜): // 鍔犺浇鏌愰」鐩殑鎵€鏈夋晠浜嬬嚎鍓х収
+Line 3132 (涓): // 鍦ㄦ晠浜嬬嚎涓覆鏌撳凡鍔犺浇鐨勫墽鐓?function renderStillsInStoryline() {
+Line 3153 (鍏):         // 妫€鏌ユ槸鍚﹀凡娓叉煋锛堥伩鍏嶉噸澶嶏級

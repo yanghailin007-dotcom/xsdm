@@ -549,14 +549,9 @@
             flex-direction: column;
             overflow: hidden;
         }
-        .outline-panel.collapsed {
-            width: 40px;
-            min-width: 40px;
-        }
         .outline-panel-header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
             padding: 10px 14px;
             border-bottom: 1px solid var(--border-color);
             flex-shrink: 0;
@@ -570,20 +565,6 @@
             align-items: center;
             gap: 6px;
         }
-        .outline-panel-toggle {
-            width: 24px; height: 24px;
-            border-radius: 6px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        .outline-panel-toggle:hover { background: var(--bg-primary); color: var(--text-primary); }
         .outline-panel-body {
             flex: 1;
             overflow-y: auto;
@@ -671,9 +652,15 @@
         .outline-md-render p {
             margin: 4px 0;
         }
+        .outline-edit-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
         .outline-edit-textarea {
             width: 100%;
-            min-height: 300px;
+            flex: 1;
+            min-height: 0;
             padding: 10px;
             background: var(--bg-primary);
             border: 1px solid var(--border-color);
@@ -682,8 +669,15 @@
             font-size: 13px;
             line-height: 1.7;
             font-family: inherit;
-            resize: vertical;
+            resize: none;
             outline: none;
+        }
+        .outline-edit-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-shrink: 0;
         }
         .outline-edit-textarea:focus {
             border-color: var(--accent);
@@ -1436,7 +1430,6 @@
         <div class="outline-panel" id="outlinePanel">
             <div class="outline-panel-header">
                 <h3>📋 本章细纲</h3>
-                <button class="outline-panel-toggle" onclick="toggleOutlinePanel()" title="折叠">◀</button>
             </div>
             <div class="outline-panel-body" id="outlinePanelBody">
                 <div class="outline-empty">请选择项目并生成章节</div>
@@ -1572,11 +1565,17 @@ function saveLastProject() {
 // 项目/卷号/模型/章节设置切换时自动保存 + 加载细纲
 $('projectSelect').addEventListener('change', async () => {
     const pid = $('projectSelect').value;
+    chapters = {};
+    $('tabTabContainer').innerHTML = '';
+    updateTabPageControls(0, 0);
     if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
     saveLastProject();
 });
 $('volumeSelect').addEventListener('change', async () => {
     const pid = $('projectSelect').value;
+    chapters = {};
+    $('tabTabContainer').innerHTML = '';
+    updateTabPageControls(0, 0);
     if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
     saveLastProject();
 });
@@ -1618,6 +1617,22 @@ async function loadProjectFiles(projectId, volumeNumber) {
             } else {
                 // 有细纲但没有已生成章节，从第1章开始
                 $('startChapter').value = 1;
+            }
+
+            // 加载已有章节
+            if (data.chapters) {
+                for (const [chNumStr, chData] of Object.entries(data.chapters)) {
+                    const chNum = parseInt(chNumStr);
+                    chapters[chNum] = { title: chData.title, content: chData.content, status: 'generated' };
+                }
+                if (Object.keys(data.chapters).length > 0) {
+                    renderTabPage();
+                    const chNums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+                    const lastCh = chNums[chNums.length - 1];
+                    showChapter(lastCh);
+                    updateStatus();
+                    updateProgress();
+                }
             }
         }
     } catch (e) {
@@ -1866,6 +1881,7 @@ function openVolumeOutlinePage() {
 
 // 简单的 Markdown 渲染
 function renderMarkdown(text) {
+    if (!text) return '';
     const lines = text.split('\n');
     let html = '';
     for (const line of lines) {
@@ -1874,18 +1890,22 @@ function renderMarkdown(text) {
             html += '<br>';
             continue;
         }
+        // 先处理行内 **粗体**
+        let processed = escapeHtml(trimmed);
+        processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>');
+
         if (trimmed.startsWith('# ')) {
-            html += `<h3 style="color:var(--text-primary);font-size:16px;margin:14px 0 8px;font-weight:700;">${escapeHtml(trimmed.replace(/^#\s*/, ''))}</h3>`;
+            html += '<h3 style="color:var(--text-primary);font-size:16px;margin:14px 0 8px;font-weight:700;">' + processed.replace(/^#\s*/, '') + '</h3>';
         } else if (trimmed.startsWith('## ')) {
-            html += `<h4 style="color:var(--accent);font-size:14px;margin:12px 0 6px;font-weight:600;">${escapeHtml(trimmed.replace(/^##\s*/, ''))}</h4>`;
+            html += '<h4 style="color:var(--accent);font-size:14px;margin:12px 0 6px;font-weight:600;">' + processed.replace(/^##\s*/, '') + '</h4>';
         } else if (trimmed.startsWith('### ')) {
-            html += `<h5 style="color:var(--text-secondary);font-size:13px;margin:10px 0 5px;font-weight:600;">${escapeHtml(trimmed.replace(/^###\s*/, ''))}</h5>`;
+            html += '<h5 style="color:var(--text-secondary);font-size:13px;margin:10px 0 5px;font-weight:600;">' + processed.replace(/^###\s*/, '') + '</h5>';
         } else if (trimmed.startsWith('- ')) {
-            html += `<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">• ${escapeHtml(trimmed.replace(/^-\s*/, ''))}</p>`;
-        } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
-            html += `<p style="font-weight:600;color:var(--text-primary);">${escapeHtml(trimmed.replace(/\*\*/g, ''))}</p>`;
+            html += '<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">' + processed.replace(/^-\s*/, '') + '</p>';
+        } else if (/^\d+\.\s/.test(trimmed)) {
+            html += '<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">' + processed + '</p>';
         } else {
-            html += `<p>${escapeHtml(trimmed)}</p>`;
+            html += '<p>' + processed + '</p>';
         }
     }
     return html;
@@ -1928,8 +1948,7 @@ async function startGeneration() {
     isGenerating = true;
     saveLastProject();
 
-    // 重置 UI
-    chapters = {};
+    // 重置 UI（不清空 chapters，保留之前批次的章节数据）
     // 同一卷内保持对话上下文，切换卷时才重置
     if (volumeNumber !== lastVolumeSession) {
         sessionMessages = [];
@@ -2735,11 +2754,12 @@ function enterOutlineEdit(chNum) {
     const panelBody = document.getElementById('outlinePanelBody');
     if (!panelBody) return;
     const section = extractOutlineSection(chNum) || '';
-    panelBody.innerHTML = '<textarea class="outline-edit-textarea" id="outlineEditTextarea">' + escapeHtml(section) + '</textarea>' +
-        '<div style="margin-top:10px;display:flex;gap:8px;justify-content:center;">' +
+    panelBody.innerHTML = '<div class="outline-edit-wrapper">' +
+        '<textarea class="outline-edit-textarea" id="outlineEditTextarea">' + escapeHtml(section) + '</textarea>' +
+        '<div class="outline-edit-actions">' +
         '<button class="gen-btn" style="font-size:12px;padding:6px 14px;" onclick="saveOutlineEdit()">💾 保存</button>' +
         '<button class="gen-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="cancelOutlineEdit()">❌ 取消</button>' +
-        '</div>';
+        '</div></div>';
 }
 
 function cancelOutlineEdit() {
@@ -2785,29 +2805,6 @@ async function saveOutlineEdit() {
         showToast('细纲保存失败', 'error');
     }
 }
-
-function toggleOutlinePanel() {
-    const panel = document.getElementById('outlinePanel');
-    if (!panel) return;
-    const isCollapsed = panel.classList.toggle('collapsed');
-    const btn = panel.querySelector('.outline-panel-toggle');
-    if (btn) btn.textContent = isCollapsed ? '▶' : '◀';
-    if (btn) btn.title = isCollapsed ? '展开' : '折叠';
-    localStorage.setItem('outlinePanelCollapsed', isCollapsed ? '1' : '0');
-}
-
-// 页面加载时恢复细纲面板折叠状态
-(function restoreOutlinePanel() {
-    const collapsed = localStorage.getItem('outlinePanelCollapsed') === '1';
-    if (collapsed) {
-        const panel = document.getElementById('outlinePanel');
-        if (panel) {
-            panel.classList.add('collapsed');
-            const btn = panel.querySelector('.outline-panel-toggle');
-            if (btn) { btn.textContent = '▶'; btn.title = '展开'; }
-        }
-    }
-})();
 
 function renderStorylineBigHtml() {
     if (storylineData.length === 0) {

@@ -1,0 +1,226 @@
+Line 65:         /* ===== 椤堕儴瀵艰埅 ===== */
+Line 107:         /* ===== 三讳綋甯冨眬 ===== */
+Line 115:         /* ===== 宸︿晶闈㈡澘 ===== */
+Line 250:         /* ===== 鏁呬簨级胯四撅紙鍦ㄥ彸渚ф鏂囧尯鍩熷睍绀猴級 ===== */
+Line 430:         /* ===== 鍙充晶闈㈡澘 ===== */
+Line 438:         /* 鍙傝€冧晶婊戦潰鏉?*/
+Line 544:         /* ===== 鍙充晶缁嗙翰闈㈡澘 ===== */
+Line 833:         /* 鎵嬫満章槄璇讳紭鍖?*/
+Line 861:         /* 鐣寗 APP 核囧噯）氱┖琛屽垎闅旓紝鏃犻琛岀缉杩?*/
+Line 867:         /* 鍦烘櫙/鍔ㄤ綔杩囨浮鐭彞）堚墹15瀛楋級•斺€斾繚鎸佺嫭章嬫钀斤紝鐣寗椋庢牸 */
+Line 871:         /* 瀵硅瘽娈佃惤•斺€斾笌鏅€氬彊杩板悓核煎紡）岀綉鏂囦笉棰濆缂╄繘 */
+Line 930:         /* ===== 璐ㄦ闈㈡澘 ===== */
+Line 1056:         /* ===== 鑷畾九夋粴鍔ㄦ潯 ===== */
+Line 1062:         /* ===== 閲嶅啓寮圭獥 ===== */
+Line 1148:         /* ===== 鏁呬簨级垮墽鐓?===== */
+Line 1193:         /* 鍓х収用熸垚妯℃€佹 */
+Line 1273:     <!-- 椤堕儴瀵艰埅 -->
+Line 1278:                 <a href="/">宸ヤ綔鍙?/a>
+Line 1288:     <!-- 三讳綋 -->
+Line 1290:         <!-- 宸︿晶闈㈡澘 -->
+Line 1292:             <!-- 椤圭洰閰嶇疆 -->
+Line 1294:                 <h3>馃摎 椤圭洰閫夋嫨</h3>
+Line 1320:             <!-- 用熸垚璁剧疆 -->
+Line 1322:                 <h3>鈿欙笍 用熸垚璁剧疆</h3>
+Line 1332:                     <span>✨?/span> 寮€濮嬬敓或?                </button>
+Line 1334:                     <span>馃攳</span> 瀵归綈璐ㄦ
+Line 1337:                     <span>▶讹笍</span> 缁х画三嬩竴鎵?                </button>
+Line 1339:                     <span>馃搵</span> 用熸垚鏈嵎缁嗙翰
+Line 1343:             <!-- 鐘舵€?-->
+Line 1351:             <!-- 鏁呬簨级垮叆鍙?-->
+Line 1353:                 <span>馃摉</span> 鏁呬簨级?            </button>
+Line 1357:         <!-- 鍙充晶闈㈡澘 -->
+Line 1359:             <!-- 章犺妭核囩椤?-->
+Line 1367:             <!-- 鎬濊€冨尯 -->
+Line 1370:             <!-- 鍐呭鍖哄煙 -->
+Line 1382:                 <div class="content-body empty" id="contentBody">璇烽€夋嫨椤圭洰骞剁偣鍑汇€屽紑濮嬬敓或愩€?/div>
+Line 1385:             <!-- 璐ㄦ闈㈡澘 -->
+Line 1387:                 <h3>馃攳 瀵归綈璐ㄦ鎶ュ憡</h3>
+Line 1392:             <!-- 鍙傝€冧晶婊戦潰鏉匡紙璁惧畾/澶х翰/缁嗙翰）?-->
+Line 1408:                     <p style="color:var(--text-muted);">鐐瑰嚮三婃柟核囩鏌ョ湅鍙傝€冨唴瀹?/p>
+Line 1413:         <!-- 鍙充晶缁嗙翰闈㈡澘 -->
+Line 1416:                 <h3>馃搵 鏈珷缁嗙翰</h3>
+Line 1427:     <!-- 閲嶅啓寮圭獥 -->
+Line 1432:             <textarea id="rewriteInstruction" placeholder="濡傦細澧炲姞鎵撹劯鍔涘害、佸姞寮洪挬瀛愩€佷慨姝ｈ瀹氬亸宸瓑..."></textarea>
+Line 1440:     <!-- 鍓х収用熸垚妯℃€佹 -->
+Line 1444:             <label>鎻愮ず璇嶏紙鍙紪杈戯級</label>
+Line 1462: let sessionMessages = []; // 姣忓嵎三€三細璇濈殑娑堟伅鍘嗗彶
+Line 1464: let lastVolumeSession = null; // 璁板綍三婁竴娆＄敓或愭椂浣跨敤鐨勫嵎鍙凤紝鍒囨崲卷锋椂閲嶇疆瀵硅瘽三婁笅鏂?let storyline = [];           // 瑙ｆ瀽鍚庣殑鏁村嵎缁嗙翰鏁扮粍
+Line 1465: let saveOutlineTimer = null;  // 缁嗙翰淇濆瓨 debounce 瀹氭椂鍣?const TAB_PAGE_SIZE = 8;      // 核囩椤垫瘡椤垫樉绀烘暟閲?let tabCurrentPage = 0;       // 褰撳墠核囩椤甸〉鐮?let activeChapter = null;
+Line 1466: let qualityReport = null; // 褰撳墠璐ㄦ鎶ュ憡
+Line 1467: let projectFiles = null; // 褰撳墠椤圭洰鏂囦欢）堢粏级茬瓑）?let showingRef = false; // 鏄惁姝ｅ湪鏄剧ず鍙傝€冨唴瀹癸紙璁惧畾/澶х翰/缁嗙翰）?let currentRefType = ''; // 'settings' | 'outline' | 'detailed'
+Line 1468: let isEditMode = false; // 鏄惁澶勪簬缂栬緫妯″紡
+Line 1474: // ===== 鍒濆鍖?=====
+Line 1543: // 椤圭洰/卷峰彿/妯″瀷/章犺妭璁剧疆鍒囨崲鏃惰嚜鍔ㄤ繚瀛?+ 鍔犺浇缁嗙翰
+Line 1568:             // 瑙ｆ瀽鍒嗗嵎澶х翰
+Line 1570:             // 瑙ｆ瀽鏁村嵎缁嗙翰
+Line 1576:             // 鏇存柊或栧垱寤哄弬鑰冩爣绛撅紙璁惧畾 + 缁嗙翰）?            updateReferenceTabs();
+Line 1577:             // 濡傛灉褰撳墠姝ｅ湪鏄剧ず鍙傝€冨唴瀹癸紝鍒锋柊
+Line 1579:             // 鍚敤鏁呬簨级挎寜閽?            updateStorylineBtn();
+Line 1580:             // 鑷姩濉厖璧峰章犺妭
+Line 1582:                 // 娌℃湁缁嗙翰）岃鏄庤繕娌″紑濮嬬敓或愶紝璧峰章犺妭璁句负 1
+Line 1585:                 // 鏈夌粏级蹭笖鏈夊凡用熸垚章犺妭）屼粠鏈€鏂扮珷鑺?1缁х画
+Line 1588:                 // 鏈夌粏级蹭絾娌℃湁宸茬敓或愮珷鑺傦紝从庣1章犲紑濮?                $('startChapter').value = 1;
+Line 1592:         console.error('鍔犺浇椤圭洰鏂囦欢澶辫触:', e);
+Line 1596: // 瑙ｆ瀽 outline.md 三哄叏九︽鏋?+ 鍚勫嵎绮楃翰
+Line 1601:     // 灏濊瘯鎸?"# 鍚勫嵎绮楃翰" 或?"---" 鍒嗛殧第﹀垎鍓?    const splitMarkers = [
+Line 1602:         /#{1,3}\s*鍚勫嵎绮楃翰/,
+Line 1620:     // 从?volumesText 三В鏋愬悇卷?    if (volumesText) {
+Line 1621:         // 鍖归厤 "# 第X卷粗矖级? 或?"## 第X卷? 或?"### 第X卷?
+Line 1677:             // 核囩椤电敱 renderTabPage 缁熶竴娓叉煋）屼笉鍐嶇洿鎺?insert
+Line 1695:     // 楂樹寒瀵瑰簲核囩
+Line 1700:     // 鍦ㄤ晶婊戦潰鏉夸腑鏄剧ず鍐呭
+Line 1708:     // 灞曞紑渚ф粦闈㈡澘
+Line 1745: // 缂栬緫妯″紡鍒囨崲
+Line 1758:         // 鐐瑰嚮淇濆瓨
+Line 1798:             // 鏇存柊鏈湴缂撳瓨
+Line 1808:             showToast('✨?宸蹭繚瀛?, 'success');
+Line 1817: // ===== 鎵撳紑鍒嗗嵎缁嗙翰用熸垚椤甸潰 =====
+Line 1822:         showToast('璇峰厛閫夋嫨三€三」鐩?, 'error');
+Line 1828: // 绠€卷曠殑 Markdown 娓叉煋
+Line 1838:         // 六堝鐞嗚鍐?**绮椾綋**
+Line 1839:         let processed = escapeHtml(trimmed);
+Line 1840:         processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>');
+Line 1850:         } else if (/^\d+[\.）]\s/.test(trimmed)) {
+Line 1851:             html += '<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">' + processed + '</p>';
+Line 1853:             html += '<p>' + processed + '</p>';
+Line 1869: // ===== 寮€濮嬬敓或?=====
+Line 1882:         showToast('褰撳墠卷疯繕娌℃湁缁嗙翰）岃六堢偣鍑汇€愮敓或愭湰卷粗粏级层€戠敓或愮粏级插悗鍐嶇敓或愭鏂?, 'error');
+Line 1895:     // 閲嶇疆 UI
+Line 1897:     // 鍚屼竴卷峰唴淇濇寔瀵硅瘽三婁笅鏂囷紝鍒囨崲卷锋椂鎵嶉噸缃?    if (volumeNumber !== lastVolumeSession) {
+Line 1919:     // 娓叉煋第竴椤垫爣绛?    renderTabPage();
+Line 1923:     // 用熸垚寮€濮嬫椂）岄粯璁ゆ樉绀虹三€三珷鑺傦紙杩涘叆鐩存挱妯″紡）?    showChapter(startChapter);
+Line 1925:     // 鍚姩 SSE
+Line 1972:                         // 绮剧畝瀵硅瘽鍘嗗彶）氬彧淇濈暀鍒濆璁惧畾 prompt + 鏈€鏂?AI 四炲
+Line 1973:                         // 鍘绘帀三棿杩囨湡鐨?gen_prompt）堟棫鐨勬壒娆＄粏级插鍚庣画鎵规鏃犵敤）?                        const msgs = data.session_messages;
+Line 1989:                     // 蹇界暐瑙ｆ瀽澶辫触鐨勮
+Line 2003: // 三枃鏁板瓧杞樋鎷変集鏁板瓧
+Line 2022: // ===== 从庢祦鏂囨湰三В鏋愮珷鑺?=====
+Line 2025:     // 鏀寔闃挎媺浼暟瀛楀拰三枃鏁板瓧
+Line 2026:     const headingRegex = /### 第?[三€二屼笁四涗簲六竷六節卷佺櫨卷冧竾二縗d]+)章\\s*(.*?)\n/g;
+Line 2054:             // 鏂扮珷鑺傚嚭鐜版椂）岃嚜鍔ㄥ垏鎹㈠埌璇ョ珷鑺傦紙鐩存挱璺熼殢）?            if (isNewChapter && isGenerating) {
+Line 2060:     // 鑺傛祦鏇存柊）氬綋鍓嶆樉绀虹珷鑺傜殑瀹炴椂鍐呭）堟瘡200ms鏈€澶氭洿鏂颁竴娆★紝閬垮厤棰戠箒閲嶆覆鏌擄級
+Line 2076: // ===== 瀹屾垚用熸垚 =====
+Line 2083:     // 灏嗘墍鏈?generating 鐘舵€佹爣璁颁负 generated）屽苟鍒锋柊核囩
+Line 2091:     // 閲嶆柊娓叉煋褰撳墠鏄剧ず章犺妭）堝惎用ㄩ珮二川妫€）?    if (activeChapter && chapters[activeChapter]) {
+Line 2095:     // 鑷姩淇濆瓨）氬埛鏂伴」鐩枃从讹紝鏇存柊 latest_chapter 鍜岃捣濮嬬珷鑺?    const projectId = $('projectSelect').value;
+Line 2100:             showToast(`✨?鎵规用熸垚瀹屾垚）?{savedCount} 章犲凡鑷姩淇濆瓨`, 'success');
+Line 2102:             showToast('✨?鎵规用熸垚瀹屾垚', 'success');
+Line 2105:         showToast('✨?鎵规用熸垚瀹屾垚', 'success');
+Line 2109: // ===== 寮€濮嬩笅三€鎵?=====
+Line 2117:     // 鍦ㄥ悓三€瀵硅瘽三婁笅鏂囦腑杩藉姞缁啓璇锋眰
+Line 2120:         content: `璇粗户缁敓或愮${nextStart}章犲埌第?{endCh}章犵殑姝ｆ枃、備弗核兼寜鐓х粏级插啓浣滐紝姣忕珷2000瀛楀乏鍙炽€傜珷鑺備箣闂寸洿鎺ヨ繛缁緭鍑猴紝三嶈鎻掑叆绌鸿或栧垎闅旂嚎、俙
+Line 2132: // ===== 章犺妭核囩椤?=====
+Line 2216:     // 纭繚褰撳墠章犺妭鍦ㄦ爣绛鹃〉褰撳墠椤典腑鍙
+Line 2235:     // 鍚屾鏇存柊鍙充晶缁嗙翰闈㈡澘
+Line 2238:     // 章犺妭鎿嶄綔鎸夐挳
+Line 2249: // 甯歌寮曞彿 Unicode
+Line 2263: // ===== 娓叉煋章犺妭鍐呭）岄珮二川妫€闂 =====
+Line 2265:     // 缃戞枃娈佃惤三嶅仛鍚堝苟）屼繚鎸丄I鍘熸牱）堢煭娈佃惤鏄暘鑼勯核硷級
+Line 2269:     // 濡傛灉鏈夎川妫€鎶ュ憡）岄珮二綋鍓嶇珷鑺傜殑闂鏂囧瓧
+Line 2279:                 // 用?mark 核囩楂樹寒）屽苟娣诲姞 tooltip
+Line 2292: // ===== 从庤川妫€闂鐩存帴閲嶅啓 =====
+Line 2298:         showToast('璇ョ珷鑺傚皻鏈敓或?, 'error');
+Line 2304:     // 鏋勫缓閲嶅啓鎸囦护
+Line 2305:     let instruction = `、愯川妫€鍙戠幇鐨勯棶棰樸€慭n绫诲瀷）?{issue.category || '六朵粬'}\n三ラ噸绋嬪害）?{issue.severity || 'warning'}\n闂鎻忚堪）?{issue.description || ''}`;
+Line 2313:     instruction += '\n\n璇锋牴鎹互三婇棶棰橀噸鍐欐湰章狅紝纭繚淇鎵€鏈夐棶棰樸€?;
+Line 2326: // ===== 鏇存柊鐘舵€?=====
+Line 2345:     // 鎵惧埌褰撳墠姝ｅ湪用熸垚鐨勭珷鑺?    let currentCh = '-';
+Line 2366: // ===== 鎬濊€冭繃绋嬫樉绀?=====
+Line 2393: // ===== 瀵归綈璐ㄦ =====
+Line 2416:             showToast('✨?璐ㄦ瀹屾垚', 'success');
+Line 2429:     qualityReport = report; // 淇濆瓨鍒板叏灞€）屼緵楂樹寒鍜岄噸鍐欎娇用?    $('qualityPanel').style.display = 'block';
+Line 2451:             ${passed ? '✨?閫氳繃' : '鉂?鏈€氳繃'}
+Line 2481:     // 鍒锋柊褰撳墠章犺妭鏄剧ず）屽簲用ㄩ珮二?    if (activeChapter) showChapter(activeChapter);
+Line 2504:     showToast(`馃攧 寮€濮嬮噸鍐欑${chNum}章?..`, 'info');
+Line 2520:                 { role: 'user', content: `璇烽噸鍐欑${chNum}章犮€備慨鏀硅姹傦細${instruction || '璇蜂紭鍖栨湰章犺川閲忥紝澧炲己爆界偣）屼慨姝ｉ棶棰樸€?}` }
+Line 2548:                         // 瀹炴椂瑙ｆ瀽骞舵樉绀猴紙鑺傛祦 200ms）?                        const now = Date.now();
+Line 2551:                             const regex = /### 第?[三€二屼笁四涗簲六竷六節卷佺櫨卷冧竾二縗d]+)章\\s*(.*?)\n/;
+Line 2568:         // 鏈€缁堣В鏋愰噸鍐欑粨鏋滐紙鏀寔三枃鏁板瓧）?        const regex = /### 第?[三€二屼笁四涗簲六竷六節卷佺櫨卷冧竾二縗d]+)章\\s*(.*?)\n/;
+Line 2581:         showToast('✨?閲嶅啓瀹屾垚', 'success');
+Line 2589: // ===== 淇濆瓨章犺妭缂栬緫 =====
+Line 2591:     // 鍚庣宸插湪娴佺粨鏉熸椂鑷姩淇濆瓨鏂囦欢
+Line 2592:     showToast('✨?章犺妭宸蹭繚瀛?, 'success');
+Line 2603: // ===== 鏁呬簨级垮姛鑳斤紙鍦ㄥ彸渚ф鏂囧尯鍩熷睍绀猴級 =====
+Line 2615:         showToast('鏆傛棤缁嗙翰鏁版嵁）屾棤娉曞睍绀烘晠二嬬嚎', 'info');
+Line 2647: // ===== 鍙充晶缁嗙翰闈㈡澘 =====
+Line 2649: // 褰撳墠姝ｅ湪缂栬緫鐨勭粏级茬珷鑺傚彿
+Line 2708:         showToast('鏈壘鍒版湰章犵粏级蹭綅缃紝淇濆瓨澶辫触', 'error');
+Line 2717:     // 閲嶆柊瑙ｆ瀽 storyline
+Line 2729:         showToast('缁嗙翰宸蹭繚瀛?, 'success');
+Line 2732:         console.error('淇濆瓨缁嗙翰澶辫触:', e);
+Line 2733:         showToast('缁嗙翰淇濆瓨澶辫触', 'error');
+Line 2741:         return '<div class="storyline-empty">鏈兘从庣粏级蹭腑瑙ｆ瀽鍑虹珷鑺傛暟鎹?/div>';
+Line 2806:     // 鏀寔1-3级markdown核囬）屽吋瀹瑰悇绉嶆牸寮?    const chapterRegex = /^#{1,3}\s*第琝s*(\d+)\s*章??:[\s:）]+(.+?))?$/gm;
+Line 2825:         ch.hook = extract('核稿績爆界偣/鐚庡鐐?) || extract('核稿績爆界偣');
+Line 2844:         ch.climaxDesign = extract('爆界偣璁捐璇存槑') || extract('爆界偣璁捐');
+Line 2845:         ch.endingHook = extract('章犺妭缁撳熬閽╁瓙') || extract('缁撳熬閽╁瓙');
+Line 2857:     else showToast('第? + num + '章犲皻鏈敓或愶紝璇峰厛寮€濮嬬敓或?, 'info');
+Line 2861:     showToast('馃幁 瑙掕壊、? + name + '、嶅湪第? + chapterNum + '章犲嚭鍦篭n）堝悗缁彲鎺ュ叆AI鍓х収用熸垚）?, 'info');
+Line 2865:     showToast('馃幀 鍦烘櫙、? + scene + '、\\n第? + chapterNum + '章\\n）堝悗缁彲鎺ュ叆AI鍦烘櫙四剧敓或愶級', 'info');
+Line 2881:         showToast('馃挜 宸查珮二' + chapterNum + '章犵埥鐐瑰叧閿瘝', 'success');
+Line 2889: // 澶嶅埗褰撳墠章犺妭姝ｆ枃
+Line 2892:         showToast('娌℃湁鍙鍒剁殑鍐呭', 'error');
+Line 2897:         showToast('✨?宸插鍒跺埌鍓创鏉?, 'success');
+Line 2899:         // 闄嶇骇鏂规
+Line 2908:             showToast('✨?宸插鍒跺埌鍓创鏉?, 'success');
+Line 2910:             showToast('鉂?澶嶅埗澶辫触）岃鎵嬪姩澶嶅埗', 'error');
+Line 2916: // ===== 鏁呬簨级垮墽鐓у姛鑳?=====
+Line 2920: // 从庨」鐩瀹氫腑鎻愬彇瑙掕壊澶栬矊鎻忚堪
+Line 2925:     // 绛栫暐1: 鎼滅储瑙掕壊鍚嶉檮杩戠殑"澶栬矊"、?闀跨浉"、?褰㈣薄"六抽敭璇?    const nameIdx = settings.indexOf(characterName);
+Line 2928:     // 鍚戝墠鍚戝悗鍚勫彇500瀛楃
+Line 2933:     // 灏濊瘯鍖归厤甯歌核煎紡
+Line 2949: // 娓呮礂瑙掕壊鍚嶏紝鍘绘帀鎷彿核囨敞濡?）堥娆″嚭鍦猴級"
+Line 2955: // 从庨」鐩瀹氫腑妫€娴嬪皬璇寸被鍨嬶紝杩斿洖 prompt 鍓嶇紑鍜岀害鏉?function detectNovelStyle() {
+Line 2958:         scenePrefix: '鐜颁唬閮藉競灏忚鍦烘櫙',
+Line 2959:         charPrefix: '鐜颁唬閮藉競灏忚瑙掕壊',
+Line 2960:         styleHint: '鐪熷疄鐓х墖璐ㄦ劅）岃嚜鐒跺厜褰憋紝鍐欏疄椋庢牸',
+Line 2961:         negHint: '三嶇骞讳笉鍙よ三嶄粰渚犱笉鍔ㄦ极',
+Line 2962:         defaultDesc: '鐜颁唬鏃ュ父绌挎惌）岄兘甯傛皵璐紝鐪熷疄二哄儚'
+Line 2969:             keys: ['淇粰', '鐜勫够', '从欎緺', '淇湡', '閲戜腹', '六冨┐', '鐏垫皵', '娉曞疂', '娓″姭', '榄旈亾', '鍓戜慨'],
+Line 2971:             scenePrefix: '鍙ら从欎緺灏忚鍦烘櫙',
+Line 2972:             charPrefix: '鍙ら从欎緺灏忚瑙掕壊',
+Line 2973:             styleHint: '四芥极椋庢牸）屽敮缇庣粏鑵?,
+Line 2974:             negHint: '三嶇幇从ｄ笉绉戝够',
+Line 2975:             defaultDesc: '鍙ら鏈嶉グ）岄閫搁暱鍙戯紝从欐皵椋橀'
+Line 2978:             keys: ['绉戝够', '鏄熼檯', '鏈虹敳', '鏈潵', '璧涘崥', '鏈笘', '鍩哄洜', '閲忓瓙', '椋炶埞'],
+Line 2980:             scenePrefix: '绉戝够灏忚鍦烘櫙',
+Line 2981:             charPrefix: '绉戝够灏忚瑙掕壊',
+Line 2982:             styleHint: '鏈潵鎰燂紝用靛奖或浘',
+Line 2983:             negHint: '三嶅彜椋庝笉鐜颁唬鏃ュ父',
+Line 2984:             defaultDesc: '鏈潵鎰熸湇瑁咃紝绉戞妧六冪礌）屽喎宄绘皵璐?
+Line 2987:             keys: ['鎮枒', '鎺ㄧ悊', '鍒戜睛', '鎺㈡', '鐘姜', '鎯婃倸', '娉曞尰', '璋嶆垬'],
+Line 2989:             scenePrefix: '鎮枒灏忚鍦烘櫙',
+Line 2990:             charPrefix: '鎮枒灏忚瑙掕壊',
+Line 2991:             styleHint: '鍐欏疄鏆楄皟）岀數褰辨劅',
+Line 2992:             negHint: '三嶇骞讳笉鍙よ三嶅敮缇?,
+Line 2993:             defaultDesc: '鍐欏疄椋庢牸）岀溂绁炴湁或忥紝姘旇川娌夌ǔ'
+Line 2996:             keys: ['瑷€鎯?, '用滃疇', '铏愭亱', '闇告€?, '卷冮噾', '濠氭亱', '章归┈'],
+Line 2998:             scenePrefix: '娴极瑷€鎯呭皬璇村満鏅?,
+Line 2999:             charPrefix: '娴极瑷€鎯呭皬璇磋鑹?,
+Line 3000:             styleHint: '鍞編鏌斿拰）岄煩鍓ч核?,
+Line 3001:             negHint: '三嶇骞讳笉鍙よ三嶆殫璋?,
+Line 3002:             defaultDesc: '鏃跺皻绮捐嚧）屾皵璐ㄤ紭闆咃紝鏌斿拰六夊奖'
+Line 3005:             keys: ['鍘嗗彶', '鏋剁┖', '鐜嬫湞', '鐨囧笣', '瀹枟', '鏉冭皨', '璇镐警'],
+Line 3007:             scenePrefix: '鍘嗗彶鏋剁┖灏忚鍦烘櫙',
+Line 3008:             charPrefix: '鍘嗗彶鏋剁┖灏忚瑙掕壊',
+Line 3009:             styleHint: '鍙ら鍐欏疄）屽巻鍙茶川鎰?,
+Line 3010:             negHint: '三嶇幇从ｄ笉绉戝够',
+Line 3011:             defaultDesc: '鍙や唬鏈嶉グ）屼华鎬佺搴勶紝鍘嗗彶璐ㄦ劅'
+Line 3018:     // 榛樿鐜颁唬閮藉競
+Line 3021:         scenePrefix: '鐜颁唬閮藉競灏忚鍦烘櫙',
+Line 3022:         charPrefix: '鐜颁唬閮藉競灏忚瑙掕壊',
+Line 3023:         styleHint: '鐪熷疄鐓х墖璐ㄦ劅）岃嚜鐒跺厜褰憋紝鍐欏疄椋庢牸',
+Line 3024:         negHint: '三嶇骞讳笉鍙よ三嶄粰渚犱笉鍔ㄦ极',
+Line 3025:         defaultDesc: '鐜颁唬鏃ュ父绌挎惌）岄兘甯傛皵璐紝鐪熷疄二哄儚'
+Line 3029: // 鏋勯€犲満鏅浘prompt
+Line 3036: // 鏋勯€犺鑹插浘prompt
+Line 3046: // 鏄剧ず鍓х収用熸垚妯℃€佹
+Line 3054:         titleEl.textContent = `馃幀 用熸垚第?{chNum}章犲満鏅浘`;
+Line 3058:         titleEl.textContent = `馃懁 用熸垚、?{cleanName}、嶈鑹插浘`;
+Line 3072: // 纭用熸垚鍓х収
+Line 3103:             showToast('✨?鍓х収用熸垚或愬姛', 'success');
+Line 3117: // 鍔犺浇鏌愰」鐩殑鎵€鏈夋晠二嬬嚎鍓х収
+Line 3128:         console.error('鍔犺浇鍓х収澶辫触:', e);
+Line 3132: // 鍦ㄦ晠二嬬嚎三覆鏌撳凡鍔犺浇鐨勫墽鐓?function renderStillsInStoryline() {
+Line 3153:         // 妫€鏌ユ槸鍚﹀凡娓叉煋）堥伩六嶉噸澶嶏級
